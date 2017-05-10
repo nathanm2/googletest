@@ -11,6 +11,10 @@ option(BUILD_SHARED_LIBS "Build shared libraries (DLLs)." OFF)
 
 option(gmock_build_tests "Build all of Google Mock's own tests." OFF)
 
+if (DEFINED CMAKE_VERSION AND NOT "${CMAKE_VERSION}" VERSION_LESS "2.8.11")
+  option(gmock_export_cmake_package "Export a CMake config-file package." OFF)
+endif()
+
 # A directory to find Google Test sources.
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gtest/CMakeLists.txt")
   set(gtest_dir gtest)
@@ -96,17 +100,39 @@ cxx_library(gmock_main
 # to the targets for when we are part of a parent build (ie being pulled
 # in via add_subdirectory() rather than being a standalone build).
 if (DEFINED CMAKE_VERSION AND NOT "${CMAKE_VERSION}" VERSION_LESS "2.8.11")
-  target_include_directories(gmock      INTERFACE "${gmock_SOURCE_DIR}/include")
-  target_include_directories(gmock_main INTERFACE "${gmock_SOURCE_DIR}/include")
+  target_include_directories(gmock INTERFACE
+    $<BUILD_INTERFACE:${gmock_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${gtest_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+  target_include_directories(gmock_main INTERFACE
+    $<BUILD_INTERFACE:${gmock_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${gtest_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
 endif()
 
 ########################################################################
 #
 # Install rules
 install(TARGETS gmock gmock_main
+  EXPORT gmock_exports
   DESTINATION lib)
 install(DIRECTORY ${gmock_SOURCE_DIR}/include/gmock
   DESTINATION include)
+
+########################################################################
+#
+# Create CMake config-file packages.
+#
+# Causes 'gmock-config.cmake' files to be emitted in both the build and install
+# trees.  Also registers the build tree package in CMake's User Package
+# Registry.
+if(gmock_export_cmake_package)
+  install(EXPORT gmock_exports
+    DESTINATION share/gmock/cmake
+    FILE gmock-config.cmake)
+  export(TARGETS gmock gmock_main FILE gmock-config.cmake)
+  export(PACKAGE GMock)
+endif()
 
 ########################################################################
 #

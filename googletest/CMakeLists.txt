@@ -22,6 +22,10 @@ option(gtest_build_samples "Build gtest's sample programs." OFF)
 
 option(gtest_disable_pthreads "Disable uses of pthreads in gtest." OFF)
 
+if (DEFINED CMAKE_VERSION AND NOT "${CMAKE_VERSION}" VERSION_LESS "2.8.11")
+  option(gtest_export_cmake_package "Export a CMake config-file package." OFF)
+endif()
+
 option(
   gtest_hide_internal_symbols
   "Build gtest with internal symbols hidden in shared libraries."
@@ -95,17 +99,37 @@ target_link_libraries(gtest_main gtest)
 # to the targets for when we are part of a parent build (ie being pulled
 # in via add_subdirectory() rather than being a standalone build).
 if (DEFINED CMAKE_VERSION AND NOT "${CMAKE_VERSION}" VERSION_LESS "2.8.11")
-  target_include_directories(gtest      INTERFACE "${gtest_SOURCE_DIR}/include")
-  target_include_directories(gtest_main INTERFACE "${gtest_SOURCE_DIR}/include")
+  target_include_directories(gtest INTERFACE
+    $<BUILD_INTERFACE:${gtest_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+  target_include_directories(gtest_main INTERFACE
+    $<BUILD_INTERFACE:${gtest_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
 endif()
 
 ########################################################################
 #
 # Install rules
 install(TARGETS gtest gtest_main
+  EXPORT gtest_exports
   DESTINATION lib)
 install(DIRECTORY ${gtest_SOURCE_DIR}/include/gtest
   DESTINATION include)
+
+########################################################################
+#
+# Create CMake config-file packages.
+#
+# Causes 'gtest-config.cmake' files to be emitted in both the build and install
+# trees.  Also registers the build tree package in CMake's User Package
+# Registry.
+if(gtest_export_cmake_package)
+  install(EXPORT gtest_exports
+    DESTINATION share/gtest/cmake
+    FILE gtest-config.cmake)
+  export(TARGETS gtest gtest_main FILE gtest-config.cmake)
+  export(PACKAGE GTest)
+endif()
 
 ########################################################################
 #
